@@ -23,9 +23,9 @@ const sequelize = new Sequelize(
   }
 );
 
-// Test connection
+// Test connection (non-blocking, won't crash if DB is unavailable)
 sequelize.authenticate()
   .then(() => console.log('✅ Database connected successfully'))
-  .catch(err => console.error('❌ Unable to connect to database:', err));
+  .catch(err => console.error('❌ Unable to connect to database:', err.message));
 
 module.exports = sequelize;

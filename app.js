@@ -53,17 +53,18 @@ app.use((req, res) => {
 // Konfigurasi Port untuk Cloud Run
 const PORT = process.env.PORT || 5000;
 
-// Server WAJIB menggunakan '0.0.0.0' untuk Cloud Run
-app.listen(PORT, '0.0.0.0', () => {
+// Start server FIRST so Cloud Run health check passes immediately
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
-});
 
-// Mulai sinkronisasi database secara terpisah
-sequelize.sync({ alter: false }) // Set to true untuk auto-update schema (hati-hati di production)
-  .then(() => {
-    console.log('✅ Database synced');
-  })
-  .catch(err => {
-    console.error('❌ Database sync failed:', err);
-  });
+  // Mulai sinkronisasi database SETELAH server sudah listen
+  sequelize.sync({ alter: false })
+    .then(() => {
+      console.log('✅ Database synced');
+    })
+    .catch(err => {
+      console.error('❌ Database sync failed:', err.message);
+      // Don't crash the server - let it continue running
+    });
+});
