@@ -1,4 +1,4 @@
-﻿runtime: nodejs24
+﻿runtime: nodejs22
 service: fe-admin-concert
 env: standard
 handlers:
