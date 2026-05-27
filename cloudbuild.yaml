@@ -17,3 +17,6 @@ steps:
       - 'app.yaml'
       - '--project=$PROJECT_ID'
       - '--quiet'
+      
+options:
+  logging: CLOUD_LOGGING_ONLY
