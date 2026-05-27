@@ -1,0 +1,10 @@
+﻿steps:
+  - name: node:18
+    entrypoint: npm
+    args: ['install']
+  - name: node:18
+    entrypoint: npm
+    args: ['run', 'build']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: ['app', 'deploy', 'app.yaml', '--quiet']
