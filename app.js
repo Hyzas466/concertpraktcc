@@ -50,20 +50,23 @@ app.use((req, res) => {
   });
 });
 
-// Start server
+// Konfigurasi Port untuk Cloud Run
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
 
-sequelize.sync({ alter: false }) // Set to true untuk auto-update schema
+// Mulai sinkronisasi database lalu jalankan server
+sequelize.sync({ alter: false }) // Set to true untuk auto-update schema (hati-hati di production)
   .then(() => {
     console.log('✅ Database synced');
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    
+    // Server HANYA dipanggil di sini dan WAJIB menggunakan '0.0.0.0'
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📝 Environment: ${process.env.NODE_ENV}`);
     });
   })
   .catch(err => {
     console.error('❌ Database sync failed:', err);
+    // Menghentikan proses node.js jika database gagal connect
+    // Ini penting agar Cloud Run tahu container-nya error dan tidak menggantung
+    process.exit(1);
   });
