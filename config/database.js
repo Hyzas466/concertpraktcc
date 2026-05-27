@@ -10,6 +10,9 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT,
     dialect: 'mysql',
     logging: false,
+    dialectOptions: process.env.INSTANCE_CONNECTION_NAME ? {
+      socketPath: `/cloudsql/${process.env.INSTANCE_CONNECTION_NAME}`
+    } : {},
     pool: {
       max: 5,
       min: 0,
