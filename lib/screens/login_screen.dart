@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import '../config/api_config.dart';
 import 'main_screen.dart';
 import 'register_screen.dart';
 
@@ -16,9 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // Use localhost for Web, 10.0.2.2 for Android emulator
-  final String apiUrl = kIsWeb ? 'https://be-admin-concert-940358634558.us-central1.run.app' : 'http://10.0.2.2:5001/api/v1';
-
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -28,13 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/auth/login'),
+        Uri.parse(ApiConfig.authLogin),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
@@ -42,12 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200 && responseData['success'] == true) {
-        // Save token
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', responseData['data']['token']);
         await prefs.setString('user', jsonEncode(responseData['data']['user']));
 
-        // Navigate to Home
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => MainScreen()),
@@ -56,11 +49,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError(responseData['message'] ?? 'Login failed');
       }
     } catch (e) {
-      _showError('An error occurred. Please try again later.');
+      _showError('Tidak bisa terhubung ke server. Periksa koneksi dan URL API.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -119,7 +110,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: Text(
                   _isLoading ? 'Loading...' : 'Login',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
               ),
               SizedBox(height: 15),

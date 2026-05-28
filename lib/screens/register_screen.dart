@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import '../config/api_config.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -15,9 +15,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // Use localhost for Web, 10.0.2.2 for Android emulator
-  final String apiUrl = kIsWeb ? 'https://be-admin-concert-940358634558.us-central1.run.app' : 'http://10.0.2.2:5001/api/v1';
-
   Future<void> _handleRegister() async {
     final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
@@ -29,13 +26,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
-        Uri.parse('$apiUrl/auth/register'),
+        Uri.parse(ApiConfig.authRegister),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'full_name': fullName,
@@ -49,18 +44,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (response.statusCode == 201 && responseData['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration successful! Please login.'), backgroundColor: Colors.green),
+          SnackBar(
+              content: Text('Registration successful! Please login.'),
+              backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Go back to login
+        Navigator.pop(context);
       } else {
         _showError(responseData['message'] ?? 'Registration failed');
       }
     } catch (e) {
-      _showError('An error occurred. Please try again later.');
+      _showError('Tidak bisa terhubung ke server. Periksa koneksi dan URL API.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -92,7 +87,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _fullNameController,
                 decoration: InputDecoration(
                   labelText: 'Full Name *',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
               SizedBox(height: 15),
@@ -101,7 +97,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   labelText: 'Email *',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
               SizedBox(height: 15),
@@ -110,7 +107,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
                   labelText: 'Phone Number',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
               SizedBox(height: 15),
@@ -119,7 +117,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
                 decoration: InputDecoration(
                   labelText: 'Password *',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
               SizedBox(height: 20),
@@ -128,11 +127,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: Text(
                   _isLoading ? 'Registering...' : 'Register',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
               ),
             ],
