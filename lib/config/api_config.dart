@@ -12,7 +12,7 @@ class ApiConfig {
   // Android emulator  : 10.0.2.2  (loopback ke PC host)
   // iOS simulator     : 127.0.0.1
   // Physical device   : IP LAN PC kamu, misalnya 192.168.1.100
-  static const String _localPort = '5000';
+  static const String _localPort = '5000'; // sesuai PORT di backend .env
   static const String _physicalDeviceIp = '192.168.1.100'; // ← ganti IP LAN kamu
 
   static String get _localBaseUrl {
