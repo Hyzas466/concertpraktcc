@@ -3,8 +3,20 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+// ── Validasi Keamanan Production ──────────────────────────────
+// Hentikan server jika JWT_SECRET lemah/default di production
+if (process.env.NODE_ENV === 'production') {
+  const weakSecrets = ['', 'your_jwt_secret_here', 'fallback_dev_secret_change_in_production'];
+  if (!process.env.JWT_SECRET || weakSecrets.includes(process.env.JWT_SECRET)) {
+    console.error('❌ FATAL: JWT_SECRET tidak aman untuk production! Set via Secret Manager.');
+    process.exit(1);
+  }
+}
+// ─────────────────────────────────────────────────────────────
+
 const sequelize = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
+
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');

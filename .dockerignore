@@ -1,7 +1,11 @@
 node_modules
 .env
-.env.example
+.env.*
 .git
+.gitignore
 *.log
 firebase-key.json
 README.md
+gcp-setup.sh
+schema.sql
+.dockerignore

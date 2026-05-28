@@ -1,11 +1,12 @@
-const { db } = require('./firestore');
+  .const { db } = require('./firestore');
 
 const getCache = async (key) => {
+  if (!db) return null;
   try {
     const docRef = db.collection('qr_cache').doc(key);
     const doc = await docRef.get();
     if (!doc.exists) return null;
-    
+
     const data = doc.data();
     if (Date.now() > data.expiry) {
       await docRef.delete();
@@ -19,6 +20,7 @@ const getCache = async (key) => {
 };
 
 const setCache = async (key, value, expirationInSeconds = 3600) => {
+  if (!db) return;
   try {
     const expiry = Date.now() + (expirationInSeconds * 1000);
     await db.collection('qr_cache').doc(key).set({
@@ -31,25 +33,26 @@ const setCache = async (key, value, expirationInSeconds = 3600) => {
 };
 
 const delCache = async (keyPattern) => {
+  if (!db) return;
   try {
     // For direct/specific keys
     if (!keyPattern.includes('*')) {
       await db.collection('qr_cache').doc(keyPattern).delete();
       return;
     }
-    
+
     // For wildcard patterns (e.g. all_events_*)
     const snapshot = await db.collection('qr_cache').get();
     const regexPattern = keyPattern.replace(/\*/g, '.*');
     const regex = new RegExp(`^${regexPattern}$`);
-    
+
     const batch = [];
     snapshot.forEach(doc => {
       if (regex.test(doc.id)) {
         batch.push(db.collection('qr_cache').doc(doc.id).delete());
       }
     });
-    
+
     await Promise.all(batch);
   } catch (error) {
     console.error(`Error in delCache for pattern ${keyPattern}:`, error.message);
@@ -61,3 +64,4 @@ module.exports = {
   setCache,
   delCache
 };
+
