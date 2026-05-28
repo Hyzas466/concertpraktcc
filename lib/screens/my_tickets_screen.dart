@@ -14,7 +14,7 @@ class MyTicketsScreen extends StatefulWidget {
 class _MyTicketsScreenState extends State<MyTicketsScreen> {
   List<dynamic> orders = [];
   bool isLoading = true;
-  final String apiUrl = kIsWeb ? 'http://localhost:5001/api/v1' : 'http://10.0.2.2:5001/api/v1';
+  final String apiUrl = kIsWeb ? 'https://be-admin-concert-940358634558.us-central1.run.app' : 'http://10.0.2.2:5001/api/v1';
 
   @override
   void initState() {

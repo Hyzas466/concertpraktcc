@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   // Use localhost for Web, 10.0.2.2 for Android emulator
-  final String apiUrl = kIsWeb ? 'http://localhost:5001/api/v1' : 'http://10.0.2.2:5001/api/v1';
+  final String apiUrl = kIsWeb ? 'https://be-admin-concert-940358634558.us-central1.run.app' : 'http://10.0.2.2:5001/api/v1';
 
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
