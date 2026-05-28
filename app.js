@@ -3,14 +3,6 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-console.log('DEBUG ENV:', {
-  DB_HOST: process.env.DB_HOST,
-  DB_USER: process.env.DB_USER,
-  DB_PASS_LENGTH: process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 'UNDEFINED',
-  DB_NAME: process.env.DB_NAME,
-  DB_PORT: process.env.DB_PORT
-});
-
 const sequelize = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -24,18 +16,23 @@ const attendeeRoutes = require('./routes/attendeeRoutes');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files (untuk QR codes & banners)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({
     success: true,
     message: 'Server is running',
+    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
@@ -47,32 +44,35 @@ app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/attendees', attendeeRoutes);
 
-// Error handler
-app.use(errorHandler);
-
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: `Route not found: ${req.method} ${req.originalUrl}`
   });
 });
 
-// Konfigurasi Port untuk Cloud Run
+// Error handler
+app.use(errorHandler);
+
+// Port - Cloud Run menggunakan PORT dari env, default 5000 untuk lokal
 const PORT = process.env.PORT || 5000;
 
-// Start server FIRST so Cloud Run health check passes immediately
+// Start server FIRST agar Cloud Run health check langsung pass
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 
-  // Mulai sinkronisasi database SETELAH server sudah listen
+  // Sinkronisasi database SETELAH server sudah listen
   sequelize.sync({ alter: false })
     .then(() => {
-      console.log('✅ Database synced');
+      console.log('✅ Database synced successfully');
     })
     .catch(err => {
       console.error('❌ Database sync failed:', err.message);
-      // Don't crash the server - let it continue running
+      // Tidak crash server - tetap jalan agar Cloud Run health check pass
     });
 });
+
+module.exports = server;
