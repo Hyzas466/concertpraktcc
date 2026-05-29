@@ -1,14 +1,14 @@
-runtime: nodejs22
-service: fe-user-concert 
+runtime: python39
+service: fe-user-concert
 
 handlers:
- 
+  # Serve file statis (JS, CSS, images, fonts, dll)
   - url: /(.*\..+)$
     static_files: build/web/\1
     upload: build/web/(.*\..+)$
     secure: always
 
-  
+  # Fallback semua route ke index.html (Flutter Web SPA)
   - url: /.*
     static_files: build/web/index.html
     upload: build/web/index.html

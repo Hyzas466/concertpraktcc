@@ -1,12 +1,12 @@
 steps:
-  # Step 1: Install dependencies dan Build Flutter Web
+  # Step 1: Install dependencies dan Build Flutter Web untuk production
   - name: 'ghcr.io/cirruslabs/flutter:stable'
     args:
       - 'bash'
       - '-c'
       - |
         flutter pub get
-        flutter build web --release
+        flutter build web --release --dart-define=FLUTTER_WEB_USE_SKIA=true
 
   # Step 2: Deploy ke Google App Engine
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
@@ -17,6 +17,6 @@ steps:
       - 'app.yaml'
       - '--project=$PROJECT_ID'
       - '--quiet'
-      
+
 options:
   logging: CLOUD_LOGGING_ONLY

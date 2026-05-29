@@ -27,7 +27,7 @@ class ApiConfig {
 
   // ─── Mode ──────────────────────────────────────────────────────────────────
   /// Set ke [true] untuk pakai server production, [false] untuk development lokal.
-  static const bool useProduction = false;
+  static const bool useProduction = true;
 
   /// Base URL yang dipakai seluruh aplikasi
   static String get baseUrl =>
