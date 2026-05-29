@@ -1,12 +1,20 @@
-﻿runtime: nodejs22
-service: default
+runtime: nodejs22
+service: fe-admin-concert
 env: standard
+
 handlers:
+  # Serve static files (JS, CSS, images, dll)
   - url: /static
     static_dir: build/static
+    secure: always
+
   - url: /(.*\..+)$
     static_files: build/\1
     upload: build/(.*\..+)$
+    secure: always
+
+  # Fallback semua route ke index.html (React Router SPA)
   - url: /.*
     static_files: build/index.html
     upload: build/index.html
+    secure: always
