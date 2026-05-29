@@ -10,8 +10,8 @@ steps:
 
   # Step 2: Deploy ke Google App Engine
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    entrypoint: 'gcloud'
     args:
-      - 'gcloud'
       - 'app'
       - 'deploy'
       - 'app.yaml'
