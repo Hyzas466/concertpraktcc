@@ -62,7 +62,7 @@ function Orders() {
                 <TableCell>Qty</TableCell>
                 <TableCell>Total Price</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                
               </TableRow>
             </TableHead>
             <TableBody>
@@ -72,25 +72,16 @@ function Orders() {
                 orders.map((order) => (
                   <TableRow key={order.id} hover>
                     <TableCell>#{order.id}</TableCell>
-                    <TableCell>{order.user?.full_name || 'User ' + order.user_id}</TableCell>
-                    <TableCell>{order.event?.title}</TableCell>
-                    <TableCell>{order.ticket?.category}</TableCell>
+                    {/* User: returned as nested object order.User */}
+                    <TableCell>{order.User?.full_name || order.user?.full_name || 'User ' + order.user_id}</TableCell>
+                    {/* Event: returned as flat string directly on order (not nested) */}
+                    <TableCell>{order.Event || order.event || '-'}</TableCell>
+                    {/* Ticket Type: returned as flat string: ticket_type / TicketType */}
+                    <TableCell>{order.ticket_type || order.TicketType || order.ticketType || '-'}</TableCell>
                     <TableCell>{order.quantity}</TableCell>
                     <TableCell>Rp {Number(order.total_price).toLocaleString('id-ID')}</TableCell>
                     <TableCell>
                       <Chip label={order.payment_status.toUpperCase()} color={getStatusColor(order.payment_status)} size="small" />
-                    </TableCell>
-                    <TableCell align="right">
-                      {order.payment_status === 'pending' && (
-                        <Button 
-                          variant="contained" 
-                          color="success" 
-                          size="small"
-                          onClick={() => handleMarkPaid(order.id)}
-                        >
-                          Mark Paid
-                        </Button>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))
