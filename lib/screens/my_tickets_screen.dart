@@ -5,14 +5,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import 'ticket_qr_screen.dart';
 
+// Deep-cast any JSON object to Map<String, dynamic>
+Map<String, dynamic> _toMap(dynamic raw) {
+  if (raw is Map<String, dynamic>) return raw;
+  if (raw is Map) return raw.map((k, v) => MapEntry(k.toString(), v));
+  return {};
+}
+
 class MyTicketsScreen extends StatefulWidget {
   @override
   _MyTicketsScreenState createState() => _MyTicketsScreenState();
 }
 
 class _MyTicketsScreenState extends State<MyTicketsScreen> {
-  List<dynamic> orders = [];
+  List<Map<String, dynamic>> orders = [];
   bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -21,6 +29,11 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
   }
 
   Future<void> fetchOrders() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
@@ -36,16 +49,31 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final decoded = json.decode(response.body);
+        final rawList = decoded['data'];
+
         setState(() {
-          orders = data['data'];
+          if (rawList is List) {
+            orders = rawList.map((e) => _toMap(e)).toList();
+          } else if (rawList is Map) {
+            // Single object returned — wrap in list
+            orders = [_toMap(rawList)];
+          } else {
+            orders = [];
+          }
           isLoading = false;
         });
       } else {
-        setState(() => isLoading = false);
+        setState(() {
+          errorMessage = 'Server error: ${response.statusCode}';
+          isLoading = false;
+        });
       }
     } catch (e) {
-      setState(() => isLoading = false);
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+      });
       debugPrint('Error fetching orders: $e');
     }
   }
@@ -54,78 +82,127 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Tickets'),
+        title: const Text('My Tickets'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : orders.isEmpty
-              ? Center(child: Text('You have not ordered any tickets yet.'))
-              : RefreshIndicator(
-                  onRefresh: fetchOrders,
-                  child: ListView.builder(
-                    padding: EdgeInsets.all(10),
-                    itemCount: orders.length,
-                    itemBuilder: (context, index) {
-                      final order = orders[index];
-                      return Card(
-                        elevation: 4,
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    TicketQRScreen(order: order),
-                              ),
-                            );
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.all(15),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  order['Event']['title'],
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                    'Category: ${order['Ticket']['category']}'),
-                                Text('Quantity: ${order['quantity']}'),
-                                Text(
-                                    'Total: Rp ${double.parse(order['total_price'].toString()).toStringAsFixed(0)}'),
-                                SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Chip(
-                                      label: Text(
-                                        'AVAILABLE',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                    Icon(Icons.arrow_forward_ios,
-                                        size: 16, color: Colors.grey),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Error: $errorMessage',
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
+                )
+              : orders.isEmpty
+                  ? const Center(
+                      child: Text('You have not ordered any tickets yet.'))
+                  : RefreshIndicator(
+                      onRefresh: fetchOrders,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(10),
+                        itemCount: orders.length,
+                        itemBuilder: (context, index) {
+                          final order = orders[index];
+
+                          // 'Event' is returned as a plain string (event title)
+                          // or as an object — handle both
+                          final eventRaw = order['Event'] ?? order['event'];
+                          String eventTitle;
+                          String eventVenue = '';
+                          String eventDate = '';
+                          if (eventRaw is String) {
+                            eventTitle = eventRaw;
+                          } else if (eventRaw is Map) {
+                            final eventMap = _toMap(eventRaw);
+                            eventTitle = eventMap['title']?.toString() ?? 'Unknown Event';
+                            eventVenue = eventMap['venue']?.toString() ?? '';
+                            eventDate = eventMap['event_date']?.toString() ?? '';
+                          } else {
+                            eventTitle = 'Unknown Event';
+                          }
+
+                          // TicketType is returned as a plain string e.g. "Reguler"
+                          final ticketRaw = order['TicketType'] ??
+                              order['ticketType'] ??
+                              order['ticket_type'] ??
+                              order['Ticket'] ??
+                              order['ticket'];
+                          String ticketCategory;
+                          if (ticketRaw is String) {
+                            ticketCategory = ticketRaw;
+                          } else if (ticketRaw is Map) {
+                            ticketCategory = _toMap(ticketRaw)['category']?.toString() ?? '-';
+                          } else {
+                            ticketCategory = '-';
+                          }
+
+                          final quantity = order['quantity'] ?? 0;
+                          final totalPrice = double.tryParse(
+                                  (order['total_price'] ?? 0).toString()) ??
+                              0.0;
+
+                          return Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        TicketQRScreen(order: order),
+                                  ),
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(15),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      eventTitle,
+                                      style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text('Category: $ticketCategory'),
+                                    Text('Quantity: $quantity'),
+                                    Text(
+                                        'Total: Rp ${totalPrice.toStringAsFixed(0)}'),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Chip(
+                                          label: const Text(
+                                            'AVAILABLE',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                        const Icon(Icons.arrow_forward_ios,
+                                            size: 16, color: Colors.grey),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }
