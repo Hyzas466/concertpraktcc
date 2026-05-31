@@ -18,7 +18,6 @@ const sequelize = require('./config/database');
 require('./models/index');
 const errorHandler = require('./middleware/errorHandler');
 
-
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const eventRoutes = require('./routes/eventRoutes');
@@ -28,12 +27,30 @@ const attendeeRoutes = require('./routes/attendeeRoutes');
 
 const app = express();
 
-// Middleware
+// ── Konfigurasi CORS Baru untuk Frontend Admin & User ──────────
+const allowedOrigins = [
+  'https://fe-admin-concert-dot-tcc-project-galih.uc.r.appspot.com',
+  'https://fe-user-concert-dot-tcc-project-galih.uc.r.appspot.com',
+  'https://fe-admin-concert.web.app' // Jaga-jaga untuk domain lama kamu
+];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: function (origin, callback) {
+    // Izinkan request tanpa origin (seperti Postman atau server-to-server)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
+// ─────────────────────────────────────────────────────────────
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
