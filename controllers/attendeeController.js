@@ -2,6 +2,39 @@ const { Attendee, Event, Ticket, User } = require('../models');
 const { getCache, setCache, delCache } = require('../config/cache');
 const { db, FieldValue } = require('../config/firestore');
 
+// ── Helper: Safe Firestore logging (non-blocking) ──
+// Jika Firestore belum aktif atau gagal, log ke console saja agar core flow tetap jalan
+const safeFirestoreAdd = async (collection, data) => {
+  try {
+    if (!db) {
+      console.warn(`⚠️ Firestore not available, skipping log to ${collection}`);
+      return null;
+    }
+    return await db.collection(collection).add(data);
+  } catch (error) {
+    console.error(`⚠️ Firestore write to ${collection} failed:`, error.message);
+    return null;
+  }
+};
+
+const safeFirestoreUpdate = async (docRef, data) => {
+  try {
+    if (!docRef) return;
+    await docRef.set(data, { merge: true });
+  } catch (error) {
+    console.error('⚠️ Firestore update failed:', error.message);
+  }
+};
+
+const getTimestamp = () => {
+  try {
+    if (FieldValue && typeof FieldValue.serverTimestamp === 'function') {
+      return FieldValue.serverTimestamp();
+    }
+  } catch (_) {}
+  return new Date();
+};
+
 // Get all tickets/attendees owned by the current user
 const getUserTickets = async (req, res) => {
   try {
@@ -27,27 +60,32 @@ const validateQR = async (req, res) => {
     const { qrCode } = req.params;
 
     // 1. Enqueue scan attempt in Firestore (Antrean Scan)
-    scanRef = await db.collection('scan_queue').add({
+    scanRef = await safeFirestoreAdd('scan_queue', {
       qr_code: qrCode,
       status: 'verifying',
-      timestamp: FieldValue.serverTimestamp()
+      timestamp: getTimestamp()
     });
     
     // Check Cache
     const cacheKey = `qr_validation_${qrCode}`;
-    const cachedAttendee = await getCache(cacheKey);
+    let cachedAttendee = null;
+    try {
+      cachedAttendee = await getCache(cacheKey);
+    } catch (cacheErr) {
+      console.warn('⚠️ Cache read failed, falling back to DB:', cacheErr.message);
+    }
 
     if (cachedAttendee) {
       // Update scan queue status
-      await db.collection('scan_queue').doc(scanRef.id).set({ status: 'verified' }, { merge: true });
+      await safeFirestoreUpdate(scanRef, { status: 'verified' });
       
       // Log access (Fast Access Log)
-      await db.collection('access_logs').add({
+      await safeFirestoreAdd('access_logs', {
         qr_code: qrCode,
         action: 'validate',
         status: 'success',
         message: 'QR code verified from cache',
-        timestamp: FieldValue.serverTimestamp()
+        timestamp: getTimestamp()
       });
 
       return res.json({ 
@@ -69,40 +107,42 @@ const validateQR = async (req, res) => {
 
     if (!attendee) {
       // Update scan queue status
-      await db.collection('scan_queue').doc(scanRef.id).set({ status: 'failed' }, { merge: true });
+      await safeFirestoreUpdate(scanRef, { status: 'failed' });
 
       // Log access
-      await db.collection('access_logs').add({
+      await safeFirestoreAdd('access_logs', {
         qr_code: qrCode,
         action: 'validate',
         status: 'failed',
         message: 'Invalid QR Code scanned',
-        timestamp: FieldValue.serverTimestamp()
+        timestamp: getTimestamp()
       });
 
       return res.status(404).json({ success: false, message: 'Invalid QR Code' });
     }
 
     // Set cache for 5 minutes (to speed up subsequent scans if gate is crowded - Status QR Gate Ramai)
-    await setCache(cacheKey, attendee, 300);
+    try {
+      await setCache(cacheKey, attendee, 300);
+    } catch (cacheErr) {
+      console.warn('⚠️ Cache write failed:', cacheErr.message);
+    }
 
     // Update scan queue status
-    await db.collection('scan_queue').doc(scanRef.id).set({ status: 'verified' }, { merge: true });
+    await safeFirestoreUpdate(scanRef, { status: 'verified' });
 
     // Log access
-    await db.collection('access_logs').add({
+    await safeFirestoreAdd('access_logs', {
       qr_code: qrCode,
       action: 'validate',
       status: 'success',
       message: `QR code verified successfully for attendee ${attendee.attendee_name}`,
-      timestamp: FieldValue.serverTimestamp()
+      timestamp: getTimestamp()
     });
 
     res.json({ success: true, data: attendee, source: 'db' });
   } catch (error) {
-    if (scanRef) {
-      await db.collection('scan_queue').doc(scanRef.id).set({ status: 'error', error: error.message }, { merge: true });
-    }
+    await safeFirestoreUpdate(scanRef, { status: 'error', error: error.message });
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -114,10 +154,10 @@ const checkIn = async (req, res) => {
     const { qrCode } = req.params;
 
     // 1. Enqueue checkin scan attempt in Firestore (Antrean Scan)
-    scanRef = await db.collection('scan_queue').add({
+    scanRef = await safeFirestoreAdd('scan_queue', {
       qr_code: qrCode,
       status: 'checkin_processing',
-      timestamp: FieldValue.serverTimestamp()
+      timestamp: getTimestamp()
     });
 
     const attendee = await Attendee.findOne({ 
@@ -129,28 +169,28 @@ const checkIn = async (req, res) => {
     });
 
     if (!attendee) {
-      await db.collection('scan_queue').doc(scanRef.id).set({ status: 'failed' }, { merge: true });
+      await safeFirestoreUpdate(scanRef, { status: 'failed' });
 
-      await db.collection('access_logs').add({
+      await safeFirestoreAdd('access_logs', {
         qr_code: qrCode,
         action: 'check_in',
         status: 'failed',
         message: 'Invalid QR Code checkin attempt',
-        timestamp: FieldValue.serverTimestamp()
+        timestamp: getTimestamp()
       });
 
       return res.status(404).json({ success: false, message: 'Invalid QR Code' });
     }
 
     if (attendee.check_in_status === 'checked_in') {
-      await db.collection('scan_queue').doc(scanRef.id).set({ status: 'failed' }, { merge: true });
+      await safeFirestoreUpdate(scanRef, { status: 'failed' });
 
-      await db.collection('access_logs').add({
+      await safeFirestoreAdd('access_logs', {
         qr_code: qrCode,
         action: 'check_in',
         status: 'failed',
         message: 'Ticket already checked in',
-        timestamp: FieldValue.serverTimestamp()
+        timestamp: getTimestamp()
       });
 
       return res.status(400).json({ success: false, message: 'Ticket already checked in' });
@@ -162,35 +202,37 @@ const checkIn = async (req, res) => {
     });
 
     // Invalidate Cache for this QR to reflect updated status
-    await delCache(`qr_validation_${qrCode}`);
+    try {
+      await delCache(`qr_validation_${qrCode}`);
+    } catch (cacheErr) {
+      console.warn('⚠️ Cache delete failed:', cacheErr.message);
+    }
 
     // Update scan queue status
-    await db.collection('scan_queue').doc(scanRef.id).set({ status: 'completed' }, { merge: true });
+    await safeFirestoreUpdate(scanRef, { status: 'completed' });
 
     // Log access
-    await db.collection('access_logs').add({
+    await safeFirestoreAdd('access_logs', {
       qr_code: qrCode,
       action: 'check_in',
       status: 'success',
       message: `Attendee ${attendee.attendee_name} checked in successfully`,
-      timestamp: FieldValue.serverTimestamp()
+      timestamp: getTimestamp()
     });
 
     // Send real-time notification to Firestore for the spectator (Notif Penonton)
-    await db.collection('spectator_notifications').add({
+    await safeFirestoreAdd('spectator_notifications', {
       user_id: attendee.user_id,
       title: 'Check-in Berhasil',
       message: `Selamat datang di ${attendee.Event?.title || 'Konser'}! Tiket kategori ${attendee.Ticket?.category || ''} Anda telah berhasil di-scan.`,
       type: 'check_in',
       is_read: false,
-      created_at: FieldValue.serverTimestamp()
+      created_at: getTimestamp()
     });
 
     res.json({ success: true, message: 'Check-in successful', data: attendee });
   } catch (error) {
-    if (scanRef) {
-      await db.collection('scan_queue').doc(scanRef.id).set({ status: 'error', error: error.message }, { merge: true });
-    }
+    await safeFirestoreUpdate(scanRef, { status: 'error', error: error.message });
     res.status(500).json({ success: false, message: error.message });
   }
 };

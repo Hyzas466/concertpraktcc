@@ -50,6 +50,27 @@ app.get('/health', (req, res) => {
   });
 });
 
+// DB health check - helps debug connection and data issues
+app.get('/health/db', async (req, res) => {
+  try {
+    const { Attendee, Order, User } = require('./models');
+    await sequelize.authenticate();
+    const attendeeCount = await Attendee.count();
+    const orderCount = await Order.count();
+    const userCount = await User.count();
+    res.json({
+      success: true,
+      message: 'Database connected',
+      data: { attendees: attendeeCount, orders: orderCount, users: userCount }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database error: ' + error.message
+    });
+  }
+});
+
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/events', eventRoutes);

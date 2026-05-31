@@ -17,4 +17,6 @@ try {
   db = null;
 }
 
-module.exports = { admin, db };
+const FieldValue = admin.firestore.FieldValue;
+
+module.exports = { admin, db, FieldValue };
