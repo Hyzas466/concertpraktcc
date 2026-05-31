@@ -1,4 +1,4 @@
-  .const { db } = require('./firestore');
+const { db } = require('./firestore');
 
 const getCache = async (key) => {
   if (!db) return null;
