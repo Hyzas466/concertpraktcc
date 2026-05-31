@@ -79,6 +79,7 @@ const ScanQR = () => {
     try {
       const html5QrCode = new Html5Qrcode("file-reader-dummy");
       const decodedText = await html5QrCode.scanFile(file, true);
+      console.log('QR decoded from file:', decodedText);
       await handleValidateQR(decodedText);
     } catch (err) {
       console.error("Failed to scan file:", err);
@@ -94,8 +95,12 @@ const ScanQR = () => {
     setError('');
     setSuccess('');
     
+    // Trim whitespace and encode for URL safety
+    const cleanQR = qrCode.trim();
+    console.log('Validating QR code:', cleanQR);
+    
     try {
-      const response = await api.get(`/attendees/qr/${qrCode}`);
+      const response = await api.get(`/attendees/qr/${encodeURIComponent(cleanQR)}`);
       if (response.data.success) {
         setScanResult(response.data.data);
         if (response.data.data.check_in_status === 'checked_in') {
@@ -117,7 +122,7 @@ const ScanQR = () => {
     
     setLoading(true);
     try {
-      const response = await api.put(`/attendees/checkin/${scanResult.qr_code}`);
+      const response = await api.put(`/attendees/checkin/${encodeURIComponent(scanResult.qr_code)}`);
       if (response.data.success) {
         setSuccess('Berhasil Check-In!');
         setScanResult({ ...scanResult, check_in_status: 'checked_in' });
@@ -136,8 +141,8 @@ const ScanQR = () => {
           Scanner Tiket (Gate Keeper)
         </Typography>
         
-        {/* Hidden dummy element required by html5-qrcode for file scanning */}
-        <div id="file-reader-dummy" style={{ display: 'none' }}></div>
+        {/* Dummy element required by html5-qrcode for file scanning - must not be display:none */}
+        <div id="file-reader-dummy" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}></div>
 
         {error && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mt: 2, mb: 2 }}>{success}</Alert>}
