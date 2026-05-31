@@ -15,6 +15,7 @@ if (process.env.NODE_ENV === 'production') {
 // ─────────────────────────────────────────────────────────────
 
 const sequelize = require('./config/database');
+require('./models/index');
 const errorHandler = require('./middleware/errorHandler');
 
 

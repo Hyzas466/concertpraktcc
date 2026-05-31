@@ -90,6 +90,7 @@ const getUserOrders = async (req, res) => {
 
     const orders = await Order.findAll(queryOptions);
 
+    console.log("DEBUG orders[0]:", JSON.stringify(orders[0], null, 2));
     res.json({ success: true, data: orders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -174,3 +175,4 @@ module.exports = {
   getOrderById,
   updateOrderStatus
 };
+// DEBUG ONLY - remove after fix
