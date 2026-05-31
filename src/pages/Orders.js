@@ -38,6 +38,7 @@ function Orders() {
       case 'paid': return 'success';
       case 'pending': return 'warning';
       case 'failed': return 'error';
+      case 'default': return 'default';
       default: return 'default';
     }
   };
@@ -55,33 +56,44 @@ function Orders() {
           <Table>
             <TableHead sx={{ bgcolor: 'grey.100' }}>
               <TableRow>
-                <TableCell fontWeight="bold">Order ID</TableCell>
-                <TableCell>User</TableCell>
-                <TableCell>Event</TableCell>
-                <TableCell>Ticket Type</TableCell>
-                <TableCell>Qty</TableCell>
-                <TableCell>Total Price</TableCell>
-                <TableCell>Status</TableCell>
-                
+                <TableCell style={{ fontWeight: 'bold' }}>Order ID</TableCell>
+                <TableCell style={{ fontWeight: 'bold' }}>User</TableCell>
+                <TableCell style={{ fontWeight: 'bold' }}>Event</TableCell>
+                <TableCell style={{ fontWeight: 'bold' }}>Ticket Type</TableCell>
+                <TableCell style={{ fontWeight: 'bold' }}>Qty</TableCell>
+                <TableCell style={{ fontWeight: 'bold' }}>Total Price</TableCell>
+                <TableCell style={{ fontWeight: 'bold' }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {orders.length === 0 ? (
-                <TableRow><TableCell colSpan={8} align="center">No orders found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} align="center">No orders found.</TableCell></TableRow>
               ) : (
                 orders.map((order) => (
                   <TableRow key={order.id} hover>
                     <TableCell>#{order.id}</TableCell>
-                    {/* User: returned as nested object order.User */}
+                    
+                    {/* User */}
                     <TableCell>{order.User?.full_name || order.user?.full_name || 'User ' + order.user_id}</TableCell>
-                    {/* Event: returned as flat string directly on order (not nested) */}
-                    <TableCell>{order.Event || order.event || '-'}</TableCell>
-                    {/* Ticket Type: returned as flat string: ticket_type / TicketType */}
-                    <TableCell>{order.ticket_type || order.TicketType || order.ticketType || '-'}</TableCell>
+                    
+                    {/* Event (Diperbaiki agar membaca objek/string dengan aman) */}
+                    <TableCell>
+                      {typeof order.Event === 'object' ? order.Event?.title : (order.Event || order.event || '-')}
+                    </TableCell>
+                    
+                    {/* Ticket Type (Diperbaiki agar mengambil kategori dari objek Ticket) */}
+                    <TableCell>
+                      {order.Ticket?.category || order.ticket_type || order.TicketType || '-'}
+                    </TableCell>
+                    
                     <TableCell>{order.quantity}</TableCell>
                     <TableCell>Rp {Number(order.total_price).toLocaleString('id-ID')}</TableCell>
                     <TableCell>
-                      <Chip label={order.payment_status.toUpperCase()} color={getStatusColor(order.payment_status)} size="small" />
+                      <Chip 
+                        label={order.payment_status ? order.payment_status.toUpperCase() : 'PENDING'} 
+                        color={getStatusColor(order.payment_status)} 
+                        size="small" 
+                      />
                     </TableCell>
                   </TableRow>
                 ))
